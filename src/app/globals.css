@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Colors */
+  --christmas-red: #D42426;
+  --christmas-green: #165B33;
+  --christmas-gold: #F8B229;
+  --snow-white: #F0F4F8;
+
+  /* Backgrounds */
+  --background: #0F2A1D;
+  /* Deep Forest Green for background */
+  --card-bg: #FFFFFF;
+
+  /* Text */
+  --foreground: #F0F4F8;
+  /* Light text on dark bg */
+  --text-dark: #1F2937;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-christmas-red: var(--christmas-red);
+  --color-christmas-green: var(--christmas-green);
+  --color-christmas-gold: var(--christmas-gold);
+  --color-snow-white: var(--snow-white);
+  --color-card-bg: var(--card-bg);
+  --color-text-dark: var(--text-dark);
+
+  --font-christmas: var(--font-christmas);
+  --font-inter: var(--font-inter);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-christmas), display;
+}
+
+/* Custom Utilities */
+.text-gold-gradient {
+  background: linear-gradient(to right, #F8B229, #FCD34D);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

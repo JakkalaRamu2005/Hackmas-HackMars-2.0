@@ -44,12 +44,20 @@ Instead of dreading study time, you look forward to "Opening the Door" of your A
    npm install
    ```
 
-3. **Start the Development Server**
+3. **Set up Environment Variables**
+   - Get your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a `.env` or `.env.local` file in the root directory
+   - Add your API key:
+     ```
+     GEMINI_KEY=your_actual_api_key_here
+     ```
+
+4. **Start the Development Server**
    ```bash
    npm run dev
    ```
 
-4. **Open in Browser**
+5. **Open in Browser**
    Visit `http://localhost:3000` to see the magic! 🌟
 
 ## 👨‍💻 Created By

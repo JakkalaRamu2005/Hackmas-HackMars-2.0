@@ -7,15 +7,63 @@ import { useState } from "react";
 interface SyllabusInputProps {
     onGenerate: (text: string) => void;
     isGenerating: boolean;
+    error?: string;
 }
 
-export const SyllabusInput = ({ onGenerate, isGenerating }: SyllabusInputProps) => {
+export const SyllabusInput = ({ onGenerate, isGenerating, error }: SyllabusInputProps) => {
     const [text, setText] = useState("");
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [isExtracting, setIsExtracting] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (text.trim()) {
             onGenerate(text);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== "application/pdf") {
+            alert("Please upload a PDF file");
+            return;
+        }
+
+        setUploadedFile(file);
+        setIsExtracting(true);
+
+        try {
+            // Dynamic import to avoid SSR issues
+            const pdfjsLib = await import("pdfjs-dist");
+
+            // Set worker path using unpkg CDN
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            let extractedText = "";
+
+            // Extract text from all pages
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                    .map((item: any) => item.str)
+                    .join(" ");
+                extractedText += pageText + "\n\n";
+            }
+
+            setText(extractedText.trim());
+            setIsExtracting(false);
+        } catch (err) {
+            console.error("Error reading PDF:", err);
+            setIsExtracting(false);
+
+            // Fallback: just show filename and let user paste manually
+            setText(`📄 Uploaded: ${file.name}\n\nPlease paste your syllabus content below:`);
         }
     };
 
@@ -33,6 +81,11 @@ export const SyllabusInput = ({ onGenerate, isGenerating }: SyllabusInputProps) 
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-200 text-sm">
+                        ❌ {error}
+                    </div>
+                )}
                 <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
@@ -41,20 +94,51 @@ export const SyllabusInput = ({ onGenerate, isGenerating }: SyllabusInputProps) 
                 />
 
                 <div className="flex items-center justify-between">
-                    <button
-                        type="button"
-                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
-                    >
-                        <UploadCloud className="w-4 h-4" />
-                        <span>Or upload PDF (Coming Soon)</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="pdf-upload"
+                            disabled={isGenerating || isExtracting}
+                        />
+                        <label
+                            htmlFor="pdf-upload"
+                            className={`flex items-center gap-2 text-sm cursor-pointer transition-colors ${isExtracting
+                                ? "text-christmas-gold animate-pulse"
+                                : "text-gray-400 hover:text-white"
+                                }`}
+                        >
+                            <UploadCloud className="w-4 h-4" />
+                            <span>
+                                {isExtracting
+                                    ? "Extracting PDF..."
+                                    : uploadedFile
+                                        ? `📄 ${uploadedFile.name}`
+                                        : "Or upload PDF"}
+                            </span>
+                        </label>
+                        {uploadedFile && !isExtracting && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setUploadedFile(null);
+                                    setText("");
+                                }}
+                                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                            >
+                                ✕ Clear
+                            </button>
+                        )}
+                    </div>
 
                     <button
                         type="submit"
                         disabled={!text.trim() || isGenerating}
                         className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${text.trim() && !isGenerating
-                                ? "bg-christmas-gold text-christmas-green hover:shadow-[0_0_20px_rgba(248,178,41,0.5)] transform hover:-translate-y-1"
-                                : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                            ? "bg-christmas-gold text-christmas-green hover:shadow-[0_0_20px_rgba(248,178,41,0.5)] transform hover:-translate-y-1"
+                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
                             }`}
                     >
                         {isGenerating ? (

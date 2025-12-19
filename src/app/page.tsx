@@ -2,24 +2,151 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Gift } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SyllabusInput } from "@/components/home/SyllabusInput";
 import { AdventGrid } from "@/components/calendar/AdventGrid";
 import { Tree } from "@/components/gamification/Tree";
+import { storage } from "@/lib/storage";
+import { StatsDisplay } from "@/components/gamification/StatsDisplay";
+import { AchievementPopup } from "@/components/gamification/AchievementPopup";
+import { GamificationStats, ACHIEVEMENTS, calculatePoints, calculateStreak, checkAchievements, Achievement } from "@/lib/gamification";
+
+interface Task {
+  day: number;
+  title: string;
+  isUnlocked: boolean;
+  isCompleted: boolean;
+}
 
 export default function Home() {
   const [viewState, setViewState] = useState<"hero" | "input" | "calendar">("hero");
   const [isGenerating, setIsGenerating] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
+  const [generatedTasks, setGeneratedTasks] = useState<Task[]>([]);
+  const [error, setError] = useState<string>("");
+  const [syllabusText, setSyllabusText] = useState<string>("");
+  const [gamificationStats, setGamificationStats] = useState<GamificationStats>({
+    points: 0,
+    streak: 0,
+    lastCompletedDate: null,
+    totalCompleted: 0,
+    achievements: ACHIEVEMENTS.map(a => ({ ...a, unlocked: false })),
+    unlockedRewards: [],
+  });
+  const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
+
+  // Load saved progress on mount
+  useEffect(() => {
+    const savedProgress = storage.loadProgress();
+    if (savedProgress) {
+      setGeneratedTasks(savedProgress.tasks);
+      setCompletedCount(savedProgress.completedCount);
+      setSyllabusText(savedProgress.syllabusText);
+      if (savedProgress.gamification) {
+        setGamificationStats(savedProgress.gamification);
+      }
+      if (savedProgress.tasks.length > 0) {
+        setViewState("calendar");
+      }
+    }
+  }, []);
+
+  // Save progress whenever tasks or completedCount changes
+  useEffect(() => {
+    if (generatedTasks.length > 0) {
+      storage.saveProgress({
+        tasks: generatedTasks,
+        completedCount,
+        syllabusText,
+        lastUpdated: new Date().toISOString(),
+        gamification: gamificationStats,
+      });
+    }
+  }, [generatedTasks, completedCount, syllabusText, gamificationStats]);
 
   const handleStart = () => setViewState("input");
 
   const handleGenerate = async (text: string) => {
     setIsGenerating(true);
-    // Simulate AI Delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsGenerating(false);
-    setViewState("calendar");
+    setError("");
+    setSyllabusText(text);
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ syllabusText: text }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate tasks");
+      }
+
+      setGeneratedTasks(data.tasks);
+      setViewState("calendar");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate calendar");
+      console.error("Error generating tasks:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleTaskComplete = (newCompletedCount: number) => {
+    setCompletedCount(newCompletedCount);
+
+    // Update gamification stats
+    const streakInfo = calculateStreak(gamificationStats.lastCompletedDate);
+    const newStreak = streakInfo.shouldIncrement
+      ? streakInfo.isStreakActive
+        ? gamificationStats.streak + 1
+        : 1
+      : gamificationStats.streak;
+
+    const newPoints = calculatePoints(newCompletedCount, newStreak);
+
+    const updatedStats: GamificationStats = {
+      ...gamificationStats,
+      points: newPoints,
+      streak: newStreak,
+      lastCompletedDate: new Date().toISOString(),
+      totalCompleted: newCompletedCount,
+    };
+
+    // Check for new achievements
+    const newAchievements = checkAchievements(updatedStats, newCompletedCount);
+    if (newAchievements.length > 0) {
+      updatedStats.achievements = updatedStats.achievements.map((a) => {
+        const newAch = newAchievements.find((na) => na.id === a.id);
+        return newAch || a;
+      });
+
+      // Show first new achievement
+      setNewAchievement(newAchievements[0]);
+      setTimeout(() => setNewAchievement(null), 5000);
+    }
+
+    setGamificationStats(updatedStats);
+  };
+
+  const handleReset = () => {
+    storage.clearProgress();
+    setGeneratedTasks([]);
+    setCompletedCount(0);
+    setSyllabusText("");
+    setGamificationStats({
+      points: 0,
+      streak: 0,
+      lastCompletedDate: null,
+      totalCompleted: 0,
+      achievements: ACHIEVEMENTS.map(a => ({ ...a, unlocked: false })),
+      unlockedRewards: [],
+    });
+    setViewState("hero");
   };
 
   return (
@@ -58,14 +185,23 @@ export default function Home() {
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="pt-8"
+              className="pt-8 flex flex-col gap-4"
             >
+              {storage.hasProgress() && (
+                <button
+                  onClick={() => setViewState("calendar")}
+                  className="group relative inline-flex items-center gap-3 px-8 py-4 bg-christmas-gold text-christmas-green text-lg font-bold rounded-full shadow-[0_0_40px_-10px_rgba(248,178,41,0.6)] hover:shadow-[0_0_60px_-10px_rgba(248,178,41,0.8)] transition-all"
+                >
+                  🎄 Continue My Calendar
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              )}
               <button
                 onClick={handleStart}
                 className="group relative inline-flex items-center gap-3 px-8 py-4 bg-christmas-red text-white text-lg font-bold rounded-full shadow-[0_0_40px_-10px_rgba(212,36,38,0.6)] hover:shadow-[0_0_60px_-10px_rgba(212,36,38,0.8)] transition-all"
               >
                 <Gift className="w-6 h-6 animate-bounce" />
-                Build My Calendar
+                {storage.hasProgress() ? "Start New Calendar" : "Build My Calendar"}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </motion.div>
@@ -81,7 +217,7 @@ export default function Home() {
             exit={{ opacity: 0, scale: 1.1 }}
             className="w-full"
           >
-            <SyllabusInput onGenerate={handleGenerate} isGenerating={isGenerating} />
+            <SyllabusInput onGenerate={handleGenerate} isGenerating={isGenerating} error={error} />
           </motion.div>
         )}
 
@@ -104,6 +240,19 @@ export default function Home() {
                   <span className="text-christmas-red font-bold">{completedCount} / 24 Ornaments</span>
                 </p>
                 <Tree completedCount={completedCount} totalTasks={24} />
+
+                {/* Gamification Stats */}
+                <div className="mt-6">
+                  <StatsDisplay stats={gamificationStats} completedCount={completedCount} />
+                </div>
+
+                {/* Reset Button */}
+                <button
+                  onClick={handleReset}
+                  className="mt-6 w-full px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm text-gray-300 hover:text-white transition-all"
+                >
+                  🔄 Start New Calendar
+                </button>
               </div>
             </div>
 
@@ -112,7 +261,11 @@ export default function Home() {
               <h2 className="text-4xl font-bold text-white mb-6 font-[family-name:var(--font-christmas)] text-left pl-4">
                 Your Study Advent Calendar 🎄
               </h2>
-              <AdventGrid onProgressUpdate={setCompletedCount} />
+              <AdventGrid
+                onProgressUpdate={handleTaskComplete}
+                initialTasks={generatedTasks}
+                onTasksUpdate={setGeneratedTasks}
+              />
             </div>
           </motion.div>
         )}
@@ -127,6 +280,14 @@ export default function Home() {
       >
         Built with ❤️ for <strong>Hackmas: HackMars 2.0</strong>
       </motion.div>
+
+      {/* Achievement Popup */}
+      {newAchievement && (
+        <AchievementPopup
+          achievement={newAchievement}
+          onClose={() => setNewAchievement(null)}
+        />
+      )}
 
     </div>
   );

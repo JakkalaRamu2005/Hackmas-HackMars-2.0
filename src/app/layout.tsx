@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Mountains_of_Christmas, Inter } from "next/font/google";
 import "./globals.css";
 import { SnowEffect } from "@/components/ui/SnowEffect";
+import { AuthButton } from "@/components/auth/AuthButton";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 const christmasFont = Mountains_of_Christmas({
   weight: ["400", "700"],
@@ -29,10 +31,13 @@ export default function RootLayout({
       <body
         className={`${christmasFont.variable} ${interFont.variable} antialiased relative min-h-screen bg-[var(--background)] text-[var(--foreground)]`}
       >
-        <SnowEffect />
-        <main className="relative z-10 w-full min-h-screen">
-          {children}
-        </main>
+        <AuthProvider>
+          <SnowEffect />
+          <AuthButton />
+          <main className="relative z-10 w-full min-h-screen">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Gift, Check, X } from "lucide-react";
 import { clsx } from "clsx";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface DayTask {
     day: number;
@@ -27,11 +27,19 @@ const MOCK_TASKS_DATA: DayTask[] = Array.from({ length: 24 }).map((_, i) => ({
 
 interface AdventGridProps {
     onProgressUpdate: (count: number) => void;
+    initialTasks?: DayTask[];
+    onTasksUpdate?: (tasks: DayTask[]) => void;
 }
 
-export const AdventGrid = ({ onProgressUpdate }: AdventGridProps) => {
-    const [tasks, setTasks] = useState(MOCK_TASKS_DATA);
+export const AdventGrid = ({ onProgressUpdate, initialTasks, onTasksUpdate }: AdventGridProps) => {
+    const [tasks, setTasks] = useState(initialTasks || MOCK_TASKS_DATA);
     const [selectedTask, setSelectedTask] = useState<DayTask | null>(null);
+
+    useEffect(() => {
+        if (initialTasks) {
+            setTasks(initialTasks);
+        }
+    }, [initialTasks]);
 
     const handleTaskComplete = (day: number) => {
         const newTasks = tasks.map(t =>
@@ -41,6 +49,10 @@ export const AdventGrid = ({ onProgressUpdate }: AdventGridProps) => {
         // Count completed
         const count = newTasks.filter(t => t.isCompleted).length;
         onProgressUpdate(count);
+        // Update parent state for persistence
+        if (onTasksUpdate) {
+            onTasksUpdate(newTasks);
+        }
         setSelectedTask(null); // Close modal
     };
 

@@ -30,6 +30,10 @@ export const AuthButton = () => {
                 )}
                 <div className="text-sm text-white">
                     <p className="font-medium">{session.user.name}</p>
+                    <p className="text-xs text-gray-300 flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        Synced to cloud
+                    </p>
                 </div>
                 <button
                     onClick={() => signOut()}

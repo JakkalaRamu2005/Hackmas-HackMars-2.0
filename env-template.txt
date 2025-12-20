@@ -1,0 +1,43 @@
+# Environment Variables Template
+# Copy this to .env or .env.local and fill in your values
+
+# ============================================
+# NextAuth Configuration
+# ============================================
+# Generate with: openssl rand -base64 32
+# Or use: https://generate-secret.vercel.app/32
+AUTH_SECRET=your_nextauth_secret_here
+NEXTAUTH_SECRET=your_nextauth_secret_here
+
+# ============================================
+# Google OAuth Credentials
+# ============================================
+# Get from: https://console.cloud.google.com/
+# 1. Create project
+# 2. Enable Google+ API
+# 3. Create OAuth 2.0 Client ID
+# 4. Add redirect URI: http://localhost:3000/api/auth/callback/google
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
+# ============================================
+# Supabase Configuration
+# ============================================
+# Get from: https://supabase.com/dashboard/project/_/settings/api
+# 1. Create new project
+# 2. Copy Project URL and anon/public key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# ============================================
+# Google Gemini AI (for syllabus generation)
+# ============================================
+# Get from: https://makersuite.google.com/app/apikey
+GEMINI_KEY=your_gemini_api_key_here
+
+# ============================================
+# Optional: Production URLs
+# ============================================
+# NEXTAUTH_URL=https://yourdomain.com
+# Add production redirect URI to Google Console:
+# https://yourdomain.com/api/auth/callback/google

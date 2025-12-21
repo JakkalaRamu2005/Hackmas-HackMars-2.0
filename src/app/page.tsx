@@ -15,10 +15,20 @@ import { Navbar } from "@/components/ui/Navbar";
 import { StudyBuddyChat, StudyBuddyButton } from "@/components/chat/StudyBuddyChat";
 import { ShareModal, ShareButtonFloating } from "@/components/share/ShareModal";
 import { StudyRoomsModal } from "@/components/rooms/StudyRoomsModal";
-import { GamificationStats, ACHIEVEMENTS, calculatePoints, calculateStreak, checkAchievements, Achievement } from "@/lib/gamification";
+import { NotificationCenter, NotificationBell } from "@/components/notifications/NotificationCenter";
+import { NotificationSettingsModal } from "@/components/notifications/NotificationSettingsModal";
+import { OnboardingTutorial, useOnboarding } from "@/components/onboarding/OnboardingTutorial";
+import { RewardShopModal, RewardShopButton } from "@/components/rewards/RewardShopModal";
+import { SnowEffect } from "@/components/rewards/SnowEffect";
+import { BackgroundMusic } from "@/components/rewards/BackgroundMusic";
+import { ThemeProvider, ThemeOverlay } from "@/components/rewards/ThemeProvider";
+import { GamificationStats, ACHIEVEMENTS, calculatePoints, calculateStreak, checkAchievements, Achievement, deductPoints } from "@/lib/gamification";
+import { rewardStorage, Reward, type RewardShopState } from "@/lib/rewards";
 import type { AnalyticsData } from "@/lib/analytics";
 import { analyticsStorage, getDefaultAnalytics, addStudySession, formatDate, getHourOfDay } from "@/lib/analytics";
 import { useSupabaseSync } from "@/lib/useSupabaseSync";
+import { useNotifications } from "@/lib/useNotifications";
+import { notificationStorage } from "@/lib/notifications";
 
 interface Task {
   day: number;
@@ -48,9 +58,27 @@ export default function Home() {
   const [showChat, setShowChat] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showStudyRooms, setShowStudyRooms] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Onboarding system
+  const { hasSeenOnboarding, completeOnboarding, resetOnboarding } = useOnboarding();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Reward Shop system
+  const [showRewardShop, setShowRewardShop] = useState(false);
+  const [rewardShopState, setRewardShopState] = useState<RewardShopState>(rewardStorage.load());
 
   // Supabase sync for authenticated users
   const supabaseSync = useSupabaseSync();
+
+  // Notifications system
+  const notifications = useNotifications({
+    completedCount,
+    streak: gamificationStats.streak,
+    totalTasks: 24,
+  });
 
   // Load saved progress on mount and when authentication changes
   useEffect(() => {
@@ -126,6 +154,52 @@ export default function Home() {
 
     saveData();
   }, [generatedTasks, completedCount, syllabusText, gamificationStats, analytics, supabaseSync]);
+
+  // Update unread notifications count
+  useEffect(() => {
+    const updateUnreadCount = () => {
+      const allNotifications = notificationStorage.getNotifications();
+      const unread = allNotifications.filter(n => !n.read).length;
+      setUnreadNotifications(unread);
+    };
+
+    updateUnreadCount();
+    const interval = setInterval(updateUnreadCount, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [showNotifications]);
+
+  // Show onboarding for first-time users
+  useEffect(() => {
+    if (!hasSeenOnboarding && !hasSavedProgress) {
+      setShowOnboarding(true);
+    }
+  }, [hasSeenOnboarding, hasSavedProgress]);
+
+  const handleOnboardingComplete = () => {
+    completeOnboarding();
+    setShowOnboarding(false);
+    setViewState("input");
+  };
+
+  const handleOnboardingSkip = () => {
+    completeOnboarding();
+    setShowOnboarding(false);
+  };
+
+  const handleRewardPurchase = (reward: Reward) => {
+    // Deduct points
+    const newPoints = deductPoints(gamificationStats.points, reward.cost);
+
+    // Update gamification stats
+    setGamificationStats({
+      ...gamificationStats,
+      points: newPoints,
+    });
+
+    // Reload reward shop state
+    setRewardShopState(rewardStorage.load());
+  };
 
   const handleStart = () => setViewState("input");
 
@@ -237,11 +311,27 @@ export default function Home() {
   };
 
   return (
-    <>
+    <ThemeProvider themeId={rewardShopState.equippedRewards.theme || null}>
+      <ThemeOverlay themeId={rewardShopState.equippedRewards.theme || null} />
+      <SnowEffect
+        type={
+          rewardShopState.equippedRewards.snowEffect === 'snow-sparkle' ? 'sparkle' :
+            rewardShopState.equippedRewards.snowEffect === 'snow-heavy' ? 'heavy' :
+              rewardShopState.equippedRewards.snowEffect === 'snow-rainbow' ? 'rainbow' :
+                rewardShopState.equippedRewards.snowEffect === 'snow-gentle' ? 'gentle' :
+                  'default'
+        }
+      />
+      <BackgroundMusic musicId={rewardShopState.equippedRewards.music || null} />
+
       <Navbar
         currentView={viewState}
         onNavigate={setViewState}
         onReset={handleReset}
+        onReplayTutorial={() => {
+          resetOnboarding();
+          setShowOnboarding(true);
+        }}
       />
 
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-4 sm:px-6 lg:px-8 py-8 text-center z-10 w-full">
@@ -440,6 +530,14 @@ export default function Home() {
         {/* Study Buddy Chat Button */}
         {!showChat && <StudyBuddyButton onClick={() => setShowChat(true)} />}
 
+        {/* Notification Bell Button */}
+        <div className="fixed bottom-6 right-24 z-40">
+          <NotificationBell
+            onClick={() => setShowNotifications(true)}
+            unreadCount={unreadNotifications}
+          />
+        </div>
+
         {/* Study Buddy Chat Modal */}
         <AnimatePresence>
           {showChat && (
@@ -466,7 +564,47 @@ export default function Home() {
           onClose={() => setShowStudyRooms(false)}
         />
 
+        {/* Notification Center */}
+        <NotificationCenter
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          onOpenSettings={() => {
+            setShowNotifications(false);
+            setShowNotificationSettings(true);
+          }}
+        />
+
+        {/* Notification Settings Modal */}
+        <NotificationSettingsModal
+          isOpen={showNotificationSettings}
+          onClose={() => setShowNotificationSettings(false)}
+        />
+
+        {/* Onboarding Tutorial */}
+        <AnimatePresence>
+          {showOnboarding && (
+            <OnboardingTutorial
+              onComplete={handleOnboardingComplete}
+              onSkip={handleOnboardingSkip}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Reward Shop Button */}
+        <RewardShopButton
+          onClick={() => setShowRewardShop(true)}
+          unlockedCount={rewardShopState.unlockedRewards.length}
+        />
+
+        {/* Reward Shop Modal */}
+        <RewardShopModal
+          isOpen={showRewardShop}
+          onClose={() => setShowRewardShop(false)}
+          currentPoints={gamificationStats.points}
+          onPurchase={handleRewardPurchase}
+        />
+
       </div>
-    </>
+    </ThemeProvider>
   );
 }

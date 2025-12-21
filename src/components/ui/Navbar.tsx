@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Home, Calendar, BarChart3, Settings, LogOut } from "lucide-react";
+import { Menu, X, Home, Calendar, BarChart3, Settings, LogOut, Sparkles } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 interface NavbarProps {
     currentView: "hero" | "input" | "calendar" | "analytics";
     onNavigate: (view: "hero" | "calendar" | "analytics") => void;
     onReset?: () => void;
+    onReplayTutorial?: () => void;
 }
 
-export const Navbar = ({ currentView, onNavigate, onReset }: NavbarProps) => {
+export const Navbar = ({ currentView, onNavigate, onReset, onReplayTutorial }: NavbarProps) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { data: session, status } = useSession();
 
@@ -61,8 +62,8 @@ export const Navbar = ({ currentView, onNavigate, onReset }: NavbarProps) => {
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => handleNavClick(item.view)}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${currentView === item.view
-                                            ? "bg-christmas-red text-white"
-                                            : "text-gray-300 hover:bg-white/10 hover:text-white"
+                                        ? "bg-christmas-red text-white"
+                                        : "text-gray-300 hover:bg-white/10 hover:text-white"
                                         }`}
                                 >
                                     <item.icon className="w-4 h-4" />
@@ -154,8 +155,8 @@ export const Navbar = ({ currentView, onNavigate, onReset }: NavbarProps) => {
                                     key={item.id}
                                     onClick={() => handleNavClick(item.view)}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${currentView === item.view
-                                            ? "bg-christmas-red text-white"
-                                            : "text-gray-300 hover:bg-white/10 hover:text-white"
+                                        ? "bg-christmas-red text-white"
+                                        : "text-gray-300 hover:bg-white/10 hover:text-white"
                                         }`}
                                 >
                                     <item.icon className="w-5 h-5" />
@@ -244,6 +245,23 @@ export const Navbar = ({ currentView, onNavigate, onReset }: NavbarProps) => {
                                     >
                                         <Settings className="w-5 h-5" />
                                         <span className="font-medium">Reset Calendar</span>
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Replay Tutorial Button */}
+                            {onReplayTutorial && (
+                                <>
+                                    <div className="border-t border-white/20 my-2"></div>
+                                    <button
+                                        onClick={() => {
+                                            onReplayTutorial();
+                                            setIsMobileMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-christmas-gold/20 to-christmas-red/20 hover:from-christmas-gold/30 hover:to-christmas-red/30 border border-christmas-gold/30 text-christmas-gold hover:text-white rounded-lg transition-all"
+                                    >
+                                        <Sparkles className="w-5 h-5" />
+                                        <span className="font-medium">🎅 Replay Tutorial</span>
                                     </button>
                                 </>
                             )}

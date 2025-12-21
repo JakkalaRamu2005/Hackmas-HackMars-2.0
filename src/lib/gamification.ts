@@ -174,3 +174,7 @@ export const checkAchievements = (
 export const getAvailableRewards = (points: number) => {
     return REWARDS.filter((reward) => reward.points <= points);
 };
+
+export const deductPoints = (currentPoints: number, cost: number): number => {
+    return Math.max(0, currentPoints - cost);
+};

@@ -1,9 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Check if Supabase credentials are configured
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!isSupabaseConfigured) {
+    console.warn('Supabase credentials not configured. Database features will be disabled.');
+}
+
+// Create Supabase client only if credentials are available
+export const supabase = isSupabaseConfigured
+    ? createClient(supabaseUrl!, supabaseAnonKey!)
+    : null;
 
 // Database types
 export interface User {
@@ -36,6 +46,11 @@ export const userService = {
         name: string;
         image?: string;
     }): Promise<User | null> {
+        if (!supabase) {
+            console.warn('Supabase not configured. Cannot upsert user.');
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('users')
             .upsert(
@@ -63,6 +78,11 @@ export const userService = {
 
     // Get user by ID
     async getUser(userId: string): Promise<User | null> {
+        if (!supabase) {
+            console.warn('Supabase not configured. Cannot get user.');
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -85,6 +105,11 @@ export const userService = {
         gamification: any;
         analytics: any;
     }): Promise<UserProgress | null> {
+        if (!supabase) {
+            // Supabase not configured - using localStorage only
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('user_progress')
             .upsert(
@@ -114,6 +139,11 @@ export const userService = {
 
     // Load user progress
     async loadProgress(userId: string): Promise<UserProgress | null> {
+        if (!supabase) {
+            console.warn('Supabase not configured. Cannot load progress.');
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('user_progress')
             .select('*')
@@ -134,6 +164,11 @@ export const userService = {
 
     // Delete user progress
     async deleteProgress(userId: string): Promise<boolean> {
+        if (!supabase) {
+            console.warn('Supabase not configured. Cannot delete progress.');
+            return false;
+        }
+
         const { error } = await supabase
             .from('user_progress')
             .delete()
@@ -147,3 +182,4 @@ export const userService = {
         return true;
     },
 };
+

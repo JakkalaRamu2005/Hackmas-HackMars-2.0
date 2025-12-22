@@ -90,7 +90,24 @@ export const REWARDS = [
 export const calculatePoints = (completedCount: number, streak: number): number => {
     const basePoints = completedCount * 10;
     const streakBonus = streak * 5;
-    return basePoints + streakBonus;
+    
+    // 12 Days of Christmas Bonus (Dec 13-24)
+    const now = new Date();
+    const christmas = new Date(now.getFullYear(), 11, 25);
+    const daysUntilChristmas = Math.ceil((christmas.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const is12DaysActive = daysUntilChristmas <= 12 && daysUntilChristmas >= 0;
+    
+    const multiplier = is12DaysActive ? 2 : 1;
+    
+    return (basePoints + streakBonus) * multiplier;
+};
+
+// Check if 12 Days of Christmas is active
+export const is12DaysOfChristmasActive = (): boolean => {
+    const now = new Date();
+    const christmas = new Date(now.getFullYear(), 11, 25);
+    const daysUntilChristmas = Math.ceil((christmas.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilChristmas <= 12 && daysUntilChristmas >= 0;
 };
 
 export const calculateStreak = (
@@ -178,3 +195,4 @@ export const getAvailableRewards = (points: number) => {
 export const deductPoints = (currentPoints: number, cost: number): number => {
     return Math.max(0, currentPoints - cost);
 };
+

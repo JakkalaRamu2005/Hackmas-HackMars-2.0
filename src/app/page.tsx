@@ -15,6 +15,12 @@ import { Navbar } from "@/components/ui/Navbar";
 import { StudyBuddyChat, StudyBuddyButton } from "@/components/chat/StudyBuddyChat";
 import { ShareModal, ShareButtonFloating } from "@/components/share/ShareModal";
 import { StudyRoomsModal } from "@/components/rooms/StudyRoomsModal";
+import { AIStudyBuddy, AIStudyBuddyButton } from "@/components/ai/AIStudyBuddy";
+import { VoiceInputModal } from "@/components/ai/VoiceInput";
+import { ARTreeViewer, ARTreeButton } from "@/components/ai/ARTreeViewer";
+import { ChristmasCountdown } from "@/components/gamification/ChristmasCountdown";
+import { ChristmasCarolTimer } from "@/components/gamification/ChristmasCarolTimer";
+import { SantasWorkshop, SantasWorkshopButton } from "@/components/gamification/SantasWorkshop";
 import { NotificationCenter, NotificationBell } from "@/components/notifications/NotificationCenter";
 import { NotificationSettingsModal } from "@/components/notifications/NotificationSettingsModal";
 import { OnboardingTutorial, useOnboarding } from "@/components/onboarding/OnboardingTutorial";
@@ -61,6 +67,14 @@ export default function Home() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // AI Innovation Features
+  const [showAIBuddy, setShowAIBuddy] = useState(false);
+  const [showVoiceInput, setShowVoiceInput] = useState(false);
+  const [showARTree, setShowARTree] = useState(false);
+
+  // Christmas Theme Features
+  const [showSantasWorkshop, setShowSantasWorkshop] = useState(false);
 
   // Onboarding system
   const { hasSeenOnboarding, completeOnboarding, resetOnboarding } = useOnboarding();
@@ -389,6 +403,15 @@ export default function Home() {
                   {hasSavedProgress ? "Start New Calendar" : "Build My Calendar"}
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
+                
+                {/* Voice Input Button */}
+                <button
+                  onClick={() => setShowVoiceInput(true)}
+                  className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-lg font-bold rounded-full shadow-[0_0_40px_-10px_rgba(139,92,246,0.6)] hover:shadow-[0_0_60px_-10px_rgba(139,92,246,0.8)] transition-all"
+                >
+                  ?? Use Voice Input
+                  <Sparkles className="w-5 h-5" />
+                </button>
               </motion.div>
             </motion.div>
           )}
@@ -603,6 +626,43 @@ export default function Home() {
           currentPoints={gamificationStats.points}
           onPurchase={handleRewardPurchase}
         />
+
+        {/* ========== AI INNOVATION FEATURES ========== */}
+
+        {/* AI Study Buddy Button */}
+        {!showAIBuddy && <AIStudyBuddyButton onClick={() => setShowAIBuddy(true)} />}
+
+        {/* AI Study Buddy Modal */}
+        <AIStudyBuddy
+          analytics={analytics}
+          gamification={gamificationStats}
+          completedCount={completedCount}
+          totalTasks={24}
+          isOpen={showAIBuddy}
+          onClose={() => setShowAIBuddy(false)}
+        />
+
+        {/* Voice Input Modal */}
+        <VoiceInputModal
+          isOpen={showVoiceInput}
+          onClose={() => setShowVoiceInput(false)}
+          onSubmit={(text) => {
+            handleGenerate(text);
+          }}
+        />
+
+        {/* AR Tree Viewer */}
+        <ARTreeViewer
+          completedCount={completedCount}
+          totalTasks={24}
+          isOpen={showARTree}
+          onClose={() => setShowARTree(false)}
+        />
+
+        {/* AR Tree Button */}
+        {!showARTree && <ARTreeButton onClick={() => setShowARTree(true)} />}
+
+        {/* ========== END AI FEATURES ========== */}
 
       </div>
     </ThemeProvider>

@@ -19,17 +19,50 @@ export interface UserProgress {
 
 const STORAGE_KEY = "studyadvent_progress";
 
+// Cache for handling circular references during JSON serialization
+const cache = new Set();
+
 export const storage = {
     // Save progress to localStorage
     saveProgress: (progress: UserProgress): void => {
         try {
+            if (typeof window === 'undefined') return;
+
             const data = {
                 ...progress,
                 lastUpdated: new Date().toISOString(),
             };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+            // Safe JSON stringify with circular reference handling
+            const jsonString = JSON.stringify(data, (key, value) => {
+                // Handle circular references
+                if (value instanceof Object && value !== null) {
+                    if (cache.has(value)) {
+                        return; // Circular reference found, discard key
+                    }
+                    cache.add(value);
+                }
+                return value;
+            });
+
+            cache.clear();
+            localStorage.setItem(STORAGE_KEY, jsonString);
         } catch (error) {
-            console.error("Failed to save progress:", error);
+            if (error instanceof Error) {
+                if (error.name === 'QuotaExceededError') {
+                    console.error("Failed to save progress: Storage quota exceeded. Clearing old data...");
+                    try {
+                        localStorage.removeItem(STORAGE_KEY);
+                        console.log("Old data cleared. Please try again.");
+                    } catch (e) {
+                        console.error("Failed to clear storage:", e);
+                    }
+                } else {
+                    console.error("Failed to save progress:", error.message);
+                }
+            } else {
+                console.error("Failed to save progress:", String(error));
+            }
         }
     },
 

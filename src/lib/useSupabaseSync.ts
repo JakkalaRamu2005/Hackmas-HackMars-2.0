@@ -73,7 +73,7 @@ export const useSupabaseSync = () => {
             }
             return false;
         } catch (error) {
-            console.error("Error saving progress to Supabase:", error);
+            console.error("Error saving progress to Supabase:", error instanceof Error ? error.message : String(error));
             return false;
         } finally {
             setIsSyncing(false);
@@ -108,6 +108,12 @@ export const useSupabaseSync = () => {
         userEmail: session?.user?.email,
         userName: session?.user?.name,
         userImage: session?.user?.image,
+        user: session?.user ? {
+            id: session.user.id,
+            name: session.user.name || null,
+            email: session.user.email || null,
+            image: session.user.image || null,
+        } : null,
         loadProgress,
         saveProgress,
         deleteProgress,

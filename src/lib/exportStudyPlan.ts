@@ -3,115 +3,120 @@
  * Export calendar as PDF or Google Calendar format
  */
 
-import type { Task } from "@/app/page";
+interface Task {
+  day: number;
+  title: string;
+  isUnlocked: boolean;
+  isCompleted: boolean;
+}
 
 export interface ExportOptions {
-    format: "pdf" | "google-calendar" | "ical";
-    includeCompleted: boolean;
-    includeSubtasks: boolean;
-    includeNotes: boolean;
+  format: "pdf" | "google-calendar" | "ical";
+  includeCompleted: boolean;
+  includeSubtasks: boolean;
+  includeNotes: boolean;
 }
 
 /**
  * Generate Google Calendar URL
  */
 export function generateGoogleCalendarURL(tasks: Task[], syllabusTitle: string): string {
-    // Google Calendar doesn't support bulk import via URL, but we can create individual events
-    // For demo, we'll create a URL for the first task
-    const firstIncompleteTask = tasks.find(t => !t.isCompleted);
+  // Google Calendar doesn't support bulk import via URL, but we can create individual events
+  // For demo, we'll create a URL for the first task
+  const firstIncompleteTask = tasks.find(t => !t.isCompleted);
 
-    if (!firstIncompleteTask) {
-        return "";
-    }
+  if (!firstIncompleteTask) {
+    return "";
+  }
 
-    const title = encodeURIComponent(`📚 ${firstIncompleteTask.title}`);
-    const details = encodeURIComponent(`Study task from ${syllabusTitle}\n\nDay ${firstIncompleteTask.day} of your StudyAdvent calendar 🎄`);
+  const title = encodeURIComponent(`📚 ${firstIncompleteTask.title}`);
+  const details = encodeURIComponent(`Study task from ${syllabusTitle}\n\nDay ${firstIncompleteTask.day} of your StudyAdvent calendar 🎄`);
 
-    // Set date to today + day number
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + firstIncompleteTask.day);
-    const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
+  // Set date to today + day number
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() + firstIncompleteTask.day);
+  const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
 
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dateStr}/${dateStr}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dateStr}/${dateStr}`;
 }
 
 /**
  * Generate iCal format
  */
 export function generateICalFile(tasks: Task[], syllabusTitle: string): string {
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-    let ical = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//StudyAdvent.ai//Study Calendar//EN',
-        'CALSCALE:GREGORIAN',
-        'METHOD:PUBLISH',
-        `X-WR-CALNAME:${syllabusTitle} - StudyAdvent`,
-        'X-WR-TIMEZONE:UTC',
+  let ical = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//StudyAdvent.ai//Study Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${syllabusTitle} - StudyAdvent`,
+    'X-WR-TIMEZONE:UTC',
+  ].join('\r\n');
+
+  tasks.forEach((task) => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + task.day);
+    const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
+
+    const event = [
+      '',
+      'BEGIN:VEVENT',
+      `UID:studyadvent-${task.day}-${timestamp}@studyadvent.ai`,
+      `DTSTAMP:${timestamp}`,
+      `DTSTART;VALUE=DATE:${dateStr}`,
+      `DTEND;VALUE=DATE:${dateStr}`,
+      `SUMMARY:📚 Day ${task.day}: ${task.title}`,
+      `DESCRIPTION:Study task from ${syllabusTitle}\\n\\nComplete this task as part of your StudyAdvent calendar! 🎄`,
+      `STATUS:${task.isCompleted ? 'COMPLETED' : 'CONFIRMED'}`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT1H',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Time to study!',
+      'END:VALARM',
+      'END:VEVENT',
     ].join('\r\n');
 
-    tasks.forEach((task) => {
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() + task.day);
-        const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
+    ical += event;
+  });
 
-        const event = [
-            '',
-            'BEGIN:VEVENT',
-            `UID:studyadvent-${task.day}-${timestamp}@studyadvent.ai`,
-            `DTSTAMP:${timestamp}`,
-            `DTSTART;VALUE=DATE:${dateStr}`,
-            `DTEND;VALUE=DATE:${dateStr}`,
-            `SUMMARY:📚 Day ${task.day}: ${task.title}`,
-            `DESCRIPTION:Study task from ${syllabusTitle}\\n\\nComplete this task as part of your StudyAdvent calendar! 🎄`,
-            `STATUS:${task.isCompleted ? 'COMPLETED' : 'CONFIRMED'}`,
-            'BEGIN:VALARM',
-            'TRIGGER:-PT1H',
-            'ACTION:DISPLAY',
-            'DESCRIPTION:Time to study!',
-            'END:VALARM',
-            'END:VEVENT',
-        ].join('\r\n');
-
-        ical += event;
-    });
-
-    ical += '\r\nEND:VCALENDAR';
-    return ical;
+  ical += '\r\nEND:VCALENDAR';
+  return ical;
 }
 
 /**
  * Download iCal file
  */
 export function downloadICalFile(tasks: Task[], syllabusTitle: string): void {
-    const icalContent = generateICalFile(tasks, syllabusTitle);
-    const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `StudyAdvent-${syllabusTitle.replace(/[^a-z0-9]/gi, '-')}.ics`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const icalContent = generateICalFile(tasks, syllabusTitle);
+  const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `StudyAdvent-${syllabusTitle.replace(/[^a-z0-9]/gi, '-')}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 /**
  * Generate PDF content (HTML)
  */
 export function generatePDFHTML(
-    tasks: Task[],
-    syllabusTitle: string,
-    completedCount: number,
-    options: ExportOptions
+  tasks: Task[],
+  syllabusTitle: string,
+  completedCount: number,
+  options: ExportOptions
 ): string {
-    const filteredTasks = options.includeCompleted
-        ? tasks
-        : tasks.filter(t => !t.isCompleted);
+  const filteredTasks = options.includeCompleted
+    ? tasks
+    : tasks.filter(t => !t.isCompleted);
 
-    const html = `
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -279,56 +284,56 @@ export function generatePDFHTML(
 </html>
   `;
 
-    return html;
+  return html;
 }
 
 /**
  * Download as PDF (using print dialog)
  */
 export function downloadAsPDF(
-    tasks: Task[],
-    syllabusTitle: string,
-    completedCount: number,
-    options: ExportOptions
+  tasks: Task[],
+  syllabusTitle: string,
+  completedCount: number,
+  options: ExportOptions
 ): void {
-    const html = generatePDFHTML(tasks, syllabusTitle, completedCount, options);
+  const html = generatePDFHTML(tasks, syllabusTitle, completedCount, options);
 
-    // Create a new window with the HTML
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
+  // Create a new window with the HTML
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
 
-        // Wait for content to load, then print
-        printWindow.onload = () => {
-            setTimeout(() => {
-                printWindow.print();
-            }, 250);
-        };
-    }
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    };
+  }
 }
 
 /**
  * Export study plan based on format
  */
 export function exportStudyPlan(
-    tasks: Task[],
-    syllabusTitle: string,
-    completedCount: number,
-    options: ExportOptions
+  tasks: Task[],
+  syllabusTitle: string,
+  completedCount: number,
+  options: ExportOptions
 ): void {
-    switch (options.format) {
-        case 'pdf':
-            downloadAsPDF(tasks, syllabusTitle, completedCount, options);
-            break;
-        case 'google-calendar':
-            const gcalURL = generateGoogleCalendarURL(tasks, syllabusTitle);
-            if (gcalURL) {
-                window.open(gcalURL, '_blank');
-            }
-            break;
-        case 'ical':
-            downloadICalFile(tasks, syllabusTitle);
-            break;
-    }
+  switch (options.format) {
+    case 'pdf':
+      downloadAsPDF(tasks, syllabusTitle, completedCount, options);
+      break;
+    case 'google-calendar':
+      const gcalURL = generateGoogleCalendarURL(tasks, syllabusTitle);
+      if (gcalURL) {
+        window.open(gcalURL, '_blank');
+      }
+      break;
+    case 'ical':
+      downloadICalFile(tasks, syllabusTitle);
+      break;
+  }
 }
